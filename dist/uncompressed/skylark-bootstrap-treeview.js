@@ -181,60 +181,6 @@ define('skylark-bootstrap-treeview/TreeView',[
 			this.styleId = this.elementId + '-style';
 
 			this.init(options);
-
-			return {
-
-				// Options (public access)
-				options: this.options,
-
-				// Initialize / destroy methods
-				init: langx.proxy(this.init, this),
-				remove: langx.proxy(this.remove, this),
-
-				// Get methods
-				getNode: langx.proxy(this.getNode, this),
-				getParent: langx.proxy(this.getParent, this),
-				getSiblings: langx.proxy(this.getSiblings, this),
-				getSelected: langx.proxy(this.getSelected, this),
-				getUnselected: langx.proxy(this.getUnselected, this),
-				getExpanded: langx.proxy(this.getExpanded, this),
-				getCollapsed: langx.proxy(this.getCollapsed, this),
-				getChecked: langx.proxy(this.getChecked, this),
-				getUnchecked: langx.proxy(this.getUnchecked, this),
-				getDisabled: langx.proxy(this.getDisabled, this),
-				getEnabled: langx.proxy(this.getEnabled, this),
-
-				// Select methods
-				selectNode: langx.proxy(this.selectNode, this),
-				unselectNode: langx.proxy(this.unselectNode, this),
-				toggleNodeSelected: langx.proxy(this.toggleNodeSelected, this),
-
-				// Expand / collapse methods
-				collapseAll: langx.proxy(this.collapseAll, this),
-				collapseNode: langx.proxy(this.collapseNode, this),
-				expandAll: langx.proxy(this.expandAll, this),
-				expandNode: langx.proxy(this.expandNode, this),
-				toggleNodeExpanded: langx.proxy(this.toggleNodeExpanded, this),
-				revealNode: langx.proxy(this.revealNode, this),
-
-				// Expand / collapse methods
-				checkAll: langx.proxy(this.checkAll, this),
-				checkNode: langx.proxy(this.checkNode, this),
-				uncheckAll: langx.proxy(this.uncheckAll, this),
-				uncheckNode: langx.proxy(this.uncheckNode, this),
-				toggleNodeChecked: langx.proxy(this.toggleNodeChecked, this),
-
-				// Disable / enable methods
-				disableAll: langx.proxy(this.disableAll, this),
-				disableNode: langx.proxy(this.disableNode, this),
-				enableAll: langx.proxy(this.enableAll, this),
-				enableNode: langx.proxy(this.enableNode, this),
-				toggleNodeDisabled: langx.proxy(this.toggleNodeDisabled, this),
-
-				// Search methods
-				search: langx.proxy(this.search, this),
-				clearSearch: langx.proxy(this.clearSearch, this)
-			};
 		},
 
 		init : function (options) {
@@ -244,7 +190,7 @@ define('skylark-bootstrap-treeview/TreeView',[
 
 			if (options.data) {
 				if (typeof options.data === 'string') {
-					options.data = langx.parseJSON(options.data);
+					options.data = JSON.parse(options.data);
 				}
 				this.tree = langx.extend(true, [], options.data);
 				delete options.data;
@@ -1294,7 +1240,20 @@ define('skylark-bootstrap-treeview/TreeView',[
 	};
 
 
-    plugins.register(TreeView,"treeview");
+    plugins.register(TreeView,"treeview",function(options,args){
+		if (typeof options === 'string') {
+			if (!(args instanceof Array)) {
+				args = [ args ];
+			}
+			return this[options].apply(this, args);
+		} else if (typeof options === 'boolean') {
+			return  this;
+		} else {
+//			this.init(options);
+			return this;
+		}
+
+    });
 
 	return skylark.attach("intg.bs3.TreeView",TreeView);
 });

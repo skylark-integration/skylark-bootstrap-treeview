@@ -3,7 +3,7 @@
   <head>
     <title>Bootstrap Tree View</title>
     <link href="../node_modules/skylark-bootstrap3/themes/default/css/bootstrap.css" rel="stylesheet">
-    <!-- <link href="./css/bootstrap-treeview.css" rel="stylesheet"> -->
+    <link href="../skins/default/treeview.css" rel="stylesheet">
   </head>
   <body>
   	<div class="container">
@@ -308,7 +308,8 @@
     </div>
   	<script src="../dist/uncompressed/skylark-bootstrap-treeview-all.js"></script>
   	<script type="text/javascript">
-      var $ = skylarkjs.domx.query;
+      var $ = skylarkjs.domx.query,
+          langx = skylarkjs.langx;
 
   		$(function() {
 
@@ -548,7 +549,7 @@
           var results = $searchableTree.treeview('search', [ pattern, options ]);
 
           var output = '<p>' + results.length + ' matches found</p>';
-          $.each(results, function (index, result) {
+          langx.each(results, function (index, result) {
             output += '<p>- ' + result.text + '</p>';
           });
           $('#search-output').html(output);
