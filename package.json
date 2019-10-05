@@ -1,0 +1,33 @@
+{
+  "name": "skylark-bootstrap-treeview",
+  "description": "A version of bootstrap treeview that ported to running on skylarkjs ui.",
+  "version": "0.9.0",
+  "keywords": [
+    "skylark",
+    "integration",
+    "bootstrap",
+    "treeview"
+  ],
+  "homepage": "https://github.com/skylark-integration/skylark-bootstrap-treeview/",
+  "author": "Hudaokeji, Inc.",
+  "scripts": {
+    "build": "sbundle build ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/skylark-integration/skylark-bootstrap-treeview.git"
+  },
+  "bugs": {
+    "url": "https://github.com/skylark-integration/skylark-bootstrap-treeview/issues"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "skylark-bootstrap3": "git+https://github.com/skylark-integration/skylark-bootstrap3.git#master",
+    "skylark-langx": "git+https://github.com/skylarklangx/skylark-langx.git#master",
+    "skylark-utils-dom": "git+https://github.com/skylarkutils/skylark-utils-dom.git#master",
+    "skylark-widgets-base": "git+https://github.com/skylark-widgets/skylark-widgets-base.git#master"
+  },
+  "engines": {
+    "node": ">=0.10.1"
+  }
+}
