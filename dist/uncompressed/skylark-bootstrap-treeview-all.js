@@ -10669,9 +10669,7 @@ define('skylark-domx-plugins/plugins',[
             }
             if (!plugin) {
                 plugin = instantiate(elm, pluginName,typeof options == 'object' && options || {});
-            } else {
-
-            if (options) {
+            } else  if (options) {
                 var args = slice.call(arguments,1); //2
                 if (extfn) {
                     return extfn.apply(plugin,args);
@@ -10694,9 +10692,6 @@ define('skylark-domx-plugins/plugins',[
                     }                
                 }                
             }
-                          
-            }
-
 
         }
 
@@ -10927,1176 +10922,1958 @@ define('skylark-utils-dom/plugins',[
 
     return dom.plugins = plugins;
 });
-define('skylark-bootstrap-treeview/TreeView',[
-	"skylark-langx/skylark",
-	"skylark-langx/langx",
-	"skylark-domx-query",
-  	"skylark-utils-dom/plugins"
-], function(skylark,langx,$,plugins) {
-
-	/*global jQuery, console*/
-
-	'use strict';
-
-
-	var pluginName = 'treeview';
-
-	var _default = {};
-
-	_default.settings = {
-
-		injectStyle: true,
-
-		levels: 2,
-
-		expandIcon: 'glyphicon glyphicon-plus',
-		collapseIcon: 'glyphicon glyphicon-minus',
-		emptyIcon: 'glyphicon',
-		nodeIcon: '',
-		selectedIcon: '',
-		checkedIcon: 'glyphicon glyphicon-check',
-		uncheckedIcon: 'glyphicon glyphicon-unchecked',
-
-		color: undefined, // '#000000',
-		backColor: undefined, // '#FFFFFF',
-		borderColor: undefined, // '#dddddd',
-		onhoverColor: '#F5F5F5',
-		selectedColor: '#FFFFFF',
-		selectedBackColor: '#428bca',
-		searchResultColor: '#D9534F',
-		searchResultBackColor: undefined, //'#FFFFFF',
-
-		enableLinks: false,
-		highlightSelected: true,
-		highlightSearchResults: true,
-		showBorder: true,
-		showIcon: true,
-		showCheckbox: false,
-		showTags: false,
-		multiSelect: false,
-
-		// Event handlers
-		onNodeChecked: undefined,
-		onNodeCollapsed: undefined,
-		onNodeDisabled: undefined,
-		onNodeEnabled: undefined,
-		onNodeExpanded: undefined,
-		onNodeSelected: undefined,
-		onNodeUnchecked: undefined,
-		onNodeUnselected: undefined,
-		onSearchComplete: undefined,
-		onSearchCleared: undefined
-	};
-
-	_default.options = {
-		silent: false,
-		ignoreChildren: false
-	};
-
-	_default.searchOptions = {
-		ignoreCase: true,
-		exactMatch: false,
-		revealResults: true
-	};
-
-	var TreeView =  plugins.Plugin.inherit({
-		klassName: "TreeView",
-
-		pluginName : "bs3.TreeView",
-
-		template : {
-			list: '<ul class="list-group"></ul>',
-			item: '<li class="list-group-item"></li>',
-			indent: '<span class="indent"></span>',
-			icon: '<span class="icon"></span>',
-			link: '<a href="#" style="color:inherit;"></a>',
-			badge: '<span class="badge"></span>'
-		},
-
-		css : '.treeview .list-group-item{cursor:pointer}.treeview span.indent{margin-left:10px;margin-right:10px}.treeview span.icon{width:12px;margin-right:5px}.treeview .node-disabled{color:silver;cursor:not-allowed}' ,
-
-		_construct : function (element, options) {
-
-			this.$element = $(element);
-			this.elementId = element.id;
-			this.styleId = this.elementId + '-style';
-
-			this.init(options);
-		},
-
-		init : function (options) {
-
-			this.tree = [];
-			this.nodes = [];
-
-			if (options.data) {
-				if (typeof options.data === 'string') {
-					options.data = JSON.parse(options.data);
-				}
-				this.tree = langx.extend(true, [], options.data);
-				delete options.data;
-			}
-			this.options = langx.extend({}, _default.settings, options);
-
-			this.destroy();
-			this.subscribeEvents();
-			this.setInitialStates({ nodes: this.tree }, 0);
-			this.render();
-		},
-
-		remove : function () {
-			this.destroy();
-			datax.removeData(this, pluginName);
-			$('#' + this.styleId).remove();
-		},
-
-		destroy : function () {
-
-			if (!this.initialized) return;
-
-			this.$wrapper.remove();
-			this.$wrapper = null;
-
-			// Switch off events
-			this.unsubscribeEvents();
-
-			// Reset this.initialized flag
-			this.initialized = false;
-		},
-
-		unsubscribeEvents : function () {
-
-			this.$element.off('click');
-			this.$element.off('nodeChecked');
-			this.$element.off('nodeCollapsed');
-			this.$element.off('nodeDisabled');
-			this.$element.off('nodeEnabled');
-			this.$element.off('nodeExpanded');
-			this.$element.off('nodeSelected');
-			this.$element.off('nodeUnchecked');
-			this.$element.off('nodeUnselected');
-			this.$element.off('searchComplete');
-			this.$element.off('searchCleared');
-		},
-
-		subscribeEvents : function () {
-
-			this.unsubscribeEvents();
-
-			this.$element.on('click', langx.proxy(this.clickHandler, this));
-
-			if (typeof (this.options.onNodeChecked) === 'function') {
-				this.$element.on('nodeChecked', this.options.onNodeChecked);
-			}
-
-			if (typeof (this.options.onNodeCollapsed) === 'function') {
-				this.$element.on('nodeCollapsed', this.options.onNodeCollapsed);
-			}
-
-			if (typeof (this.options.onNodeDisabled) === 'function') {
-				this.$element.on('nodeDisabled', this.options.onNodeDisabled);
-			}
-
-			if (typeof (this.options.onNodeEnabled) === 'function') {
-				this.$element.on('nodeEnabled', this.options.onNodeEnabled);
-			}
-
-			if (typeof (this.options.onNodeExpanded) === 'function') {
-				this.$element.on('nodeExpanded', this.options.onNodeExpanded);
-			}
-
-			if (typeof (this.options.onNodeSelected) === 'function') {
-				this.$element.on('nodeSelected', this.options.onNodeSelected);
-			}
-
-			if (typeof (this.options.onNodeUnchecked) === 'function') {
-				this.$element.on('nodeUnchecked', this.options.onNodeUnchecked);
-			}
-
-			if (typeof (this.options.onNodeUnselected) === 'function') {
-				this.$element.on('nodeUnselected', this.options.onNodeUnselected);
-			}
-
-			if (typeof (this.options.onSearchComplete) === 'function') {
-				this.$element.on('searchComplete', this.options.onSearchComplete);
-			}
-
-			if (typeof (this.options.onSearchCleared) === 'function') {
-				this.$element.on('searchCleared', this.options.onSearchCleared);
-			}
-		},
-
-		/*
-			Recurse the tree structure and ensure all nodes have
-			valid initial states.  User defined states will be preserved.
-			For performance we also take this opportunity to
-			index nodes in a flattened structure
-		*/
-		setInitialStates : function (node, level) {
-
-			if (!node.nodes) return;
-			level += 1;
-
-			var parent = node;
-			var _this = this;
-			langx.each(node.nodes, function checkStates(index, node) {
-
-				// nodeId : unique, incremental identifier
-				node.nodeId = _this.nodes.length;
-
-				// parentId : transversing up the tree
-				node.parentId = parent.nodeId;
-
-				// if not provided set selectable default value
-				if (!node.hasOwnProperty('selectable')) {
-					node.selectable = true;
-				}
-
-				// where provided we should preserve states
-				node.state = node.state || {};
-
-				// set checked state; unless set always false
-				if (!node.state.hasOwnProperty('checked')) {
-					node.state.checked = false;
-				}
-
-				// set enabled state; unless set always false
-				if (!node.state.hasOwnProperty('disabled')) {
-					node.state.disabled = false;
-				}
-
-				// set expanded state; if not provided based on levels
-				if (!node.state.hasOwnProperty('expanded')) {
-					if (!node.state.disabled &&
-							(level < _this.options.levels) &&
-							(node.nodes && node.nodes.length > 0)) {
-						node.state.expanded = true;
-					}
-					else {
-						node.state.expanded = false;
-					}
-				}
-
-				// set selected state; unless set always false
-				if (!node.state.hasOwnProperty('selected')) {
-					node.state.selected = false;
-				}
-
-				// index nodes in a flattened structure for use later
-				_this.nodes.push(node);
-
-				// recurse child nodes and transverse the tree
-				if (node.nodes) {
-					_this.setInitialStates(node, level);
-				}
-			});
-		},
-
-		clickHandler : function (event) {
-
-			if (!this.options.enableLinks) event.preventDefault();
-
-			var target = $(event.target);
-			var node = this.findNode(target);
-			if (!node || node.state.disabled) return;
-			
-			var classList = target.attr('class') ? target.attr('class').split(' ') : [];
-			if ((classList.indexOf('expand-icon') !== -1)) {
-
-				this.toggleExpandedState(node, _default.options);
-				this.render();
-			}
-			else if ((classList.indexOf('check-icon') !== -1)) {
-				
-				this.toggleCheckedState(node, _default.options);
-				this.render();
-			}
-			else {
-				
-				if (node.selectable) {
-					this.toggleSelectedState(node, _default.options);
-				} else {
-					this.toggleExpandedState(node, _default.options);
-				}
-
-				this.render();
-			}
-		},
-
-		// Looks up the DOM for the closest parent list item to retrieve the
-		// data attribute nodeid, which is used to lookup the node in the flattened structure.
-		findNode : function (target) {
-
-			var nodeId = target.closest('li.list-group-item').attr('data-nodeid');
-			var node = this.nodes[nodeId];
-
-			if (!node) {
-				console.log('Error: node does not exist');
-			}
-			return node;
-		},
-
-		toggleExpandedState : function (node, options) {
-			if (!node) return;
-			this.setExpandedState(node, !node.state.expanded, options);
-		},
-
-		setExpandedState : function (node, state, options) {
-
-			if (state === node.state.expanded) return;
-
-			if (state && node.nodes) {
-
-				// Expand a node
-				node.state.expanded = true;
-				if (!options.silent) {
-					this.$element.trigger('nodeExpanded', langx.extend(true, {}, node));
-				}
-			}
-			else if (!state) {
-
-				// Collapse a node
-				node.state.expanded = false;
-				if (!options.silent) {
-					this.$element.trigger('nodeCollapsed', langx.extend(true, {}, node));
-				}
-
-				// Collapse child nodes
-				if (node.nodes && !options.ignoreChildren) {
-					langx.each(node.nodes, langx.proxy(function (index, node) {
-						this.setExpandedState(node, false, options);
-					}, this));
-				}
-			}
-		},
-
-		toggleSelectedState : function (node, options) {
-			if (!node) return;
-			this.setSelectedState(node, !node.state.selected, options);
-		},
-
-		setSelectedState : function (node, state, options) {
-
-			if (state === node.state.selected) return;
-
-			if (state) {
-
-				// If multiSelect false, unselect previously selected
-				if (!this.options.multiSelect) {
-					langx.each(this.findNodes('true', 'g', 'state.selected'), langx.proxy(function (index, node) {
-						this.setSelectedState(node, false, options);
-					}, this));
-				}
-
-				// Continue selecting node
-				node.state.selected = true;
-				if (!options.silent) {
-					this.$element.trigger('nodeSelected', langx.extend(true, {}, node));
-				}
-			}
-			else {
-
-				// Unselect node
-				node.state.selected = false;
-				if (!options.silent) {
-					this.$element.trigger('nodeUnselected', langx.extend(true, {}, node));
-				}
-			}
-		},
-
-		toggleCheckedState : function (node, options) {
-			if (!node) return;
-			this.setCheckedState(node, !node.state.checked, options);
-		},
-
-		setCheckedState : function (node, state, options) {
-
-			if (state === node.state.checked) return;
-
-			if (state) {
-
-				// Check node
-				node.state.checked = true;
-
-				if (!options.silent) {
-					this.$element.trigger('nodeChecked', langx.extend(true, {}, node));
-				}
-			}
-			else {
-
-				// Uncheck node
-				node.state.checked = false;
-				if (!options.silent) {
-					this.$element.trigger('nodeUnchecked', langx.extend(true, {}, node));
-				}
-			}
-		},
-
-		setDisabledState : function (node, state, options) {
-
-			if (state === node.state.disabled) return;
-
-			if (state) {
-
-				// Disable node
-				node.state.disabled = true;
-
-				// Disable all other states
-				this.setExpandedState(node, false, options);
-				this.setSelectedState(node, false, options);
-				this.setCheckedState(node, false, options);
-
-				if (!options.silent) {
-					this.$element.trigger('nodeDisabled', langx.extend(true, {}, node));
-				}
-			}
-			else {
-
-				// Enabled node
-				node.state.disabled = false;
-				if (!options.silent) {
-					this.$element.trigger('nodeEnabled', langx.extend(true, {}, node));
-				}
-			}
-		},
-
-		render : function () {
-
-			if (!this.initialized) {
-
-				// Setup first time only components
-				this.$element.addClass(pluginName);
-				this.$wrapper = $(this.template.list);
-
-				this.injectStyle();
-
-				this.initialized = true;
-			}
-
-			this.$element.empty().append(this.$wrapper.empty());
-
-			// Build tree
-			this.buildTree(this.tree, 0);
-		},
-
-		// Starting from the root node, and recursing down the
-		// structure we build the tree one node at a time
-		buildTree : function (nodes, level) {
-
-			if (!nodes) return;
-			level += 1;
-
-			var _this = this;
-			langx.each(nodes, function addNodes(id, node) {
-
-				var treeItem = $(_this.template.item)
-					.addClass('node-' + _this.elementId)
-					.addClass(node.state.checked ? 'node-checked' : '')
-					.addClass(node.state.disabled ? 'node-disabled': '')
-					.addClass(node.state.selected ? 'node-selected' : '')
-					.addClass(node.searchResult ? 'search-result' : '') 
-					.attr('data-nodeid', node.nodeId)
-					.attr('style', _this.buildStyleOverride(node));
-
-				// Add indent/spacer to mimic tree structure
-				for (var i = 0; i < (level - 1); i++) {
-					treeItem.append(_this.template.indent);
-				}
-
-				// Add expand, collapse or empty spacer icons
-				var classList = [];
-				if (node.nodes) {
-					classList.push('expand-icon');
-					if (node.state.expanded) {
-						classList.push(_this.options.collapseIcon);
-					}
-					else {
-						classList.push(_this.options.expandIcon);
-					}
-				}
-				else {
-					classList.push(_this.options.emptyIcon);
-				}
-
-				treeItem
-					.append($(_this.template.icon)
-						.addClass(classList.join(' '))
-					);
-
-
-				// Add node icon
-				if (_this.options.showIcon) {
-					
-					var classList = ['node-icon'];
-
-					classList.push(node.icon || _this.options.nodeIcon);
-					if (node.state.selected) {
-						classList.pop();
-						classList.push(node.selectedIcon || _this.options.selectedIcon || 
-										node.icon || _this.options.nodeIcon);
-					}
-
-					treeItem
-						.append($(_this.template.icon)
-							.addClass(classList.join(' '))
-						);
-				}
-
-				// Add check / unchecked icon
-				if (_this.options.showCheckbox) {
-
-					var classList = ['check-icon'];
-					if (node.state.checked) {
-						classList.push(_this.options.checkedIcon); 
-					}
-					else {
-						classList.push(_this.options.uncheckedIcon);
-					}
-
-					treeItem
-						.append($(_this.template.icon)
-							.addClass(classList.join(' '))
-						);
-				}
-
-				// Add text
-				if (_this.options.enableLinks) {
-					// Add hyperlink
-					treeItem
-						.append($(_this.template.link)
-							.attr('href', node.href)
-							.append(node.text)
-						);
-				}
-				else {
-					// otherwise just text
-					treeItem
-						.append(node.text);
-				}
-
-				// Add tags as badges
-				if (_this.options.showTags && node.tags) {
-					langx.each(node.tags, function addTag(id, tag) {
-						treeItem
-							.append($(_this.template.badge)
-								.append(tag)
-							);
-					});
-				}
-
-				// Add item to the tree
-				_this.$wrapper.append(treeItem);
-
-				// Recursively add child ndoes
-				if (node.nodes && node.state.expanded && !node.state.disabled) {
-					return _this.buildTree(node.nodes, level);
-				}
-			});
-		},
-
-		// Define any node level style override for
-		// 1. selectedNode
-		// 2. node|data assigned color overrides
-		buildStyleOverride : function (node) {
-
-			if (node.state.disabled) return '';
-
-			var color = node.color;
-			var backColor = node.backColor;
-
-			if (this.options.highlightSelected && node.state.selected) {
-				if (this.options.selectedColor) {
-					color = this.options.selectedColor;
-				}
-				if (this.options.selectedBackColor) {
-					backColor = this.options.selectedBackColor;
-				}
-			}
-
-			if (this.options.highlightSearchResults && node.searchResult && !node.state.disabled) {
-				if (this.options.searchResultColor) {
-					color = this.options.searchResultColor;
-				}
-				if (this.options.searchResultBackColor) {
-					backColor = this.options.searchResultBackColor;
-				}
-			}
-
-			return 'color:' + color +
-				';background-color:' + backColor + ';';
-		},
-
-		// Add inline style into head
-		injectStyle : function () {
-
-			if (this.options.injectStyle && !document.getElementById(this.styleId)) {
-				$('<style type="text/css" id="' + this.styleId + '"> ' + this.buildStyle() + ' </style>').appendTo('head');
-			}
-		},
-
-		// Construct trees style based on user options
-		buildStyle : function () {
-
-			var style = '.node-' + this.elementId + '{';
-
-			if (this.options.color) {
-				style += 'color:' + this.options.color + ';';
-			}
-
-			if (this.options.backColor) {
-				style += 'background-color:' + this.options.backColor + ';';
-			}
-
-			if (!this.options.showBorder) {
-				style += 'border:none;';
-			}
-			else if (this.options.borderColor) {
-				style += 'border:1px solid ' + this.options.borderColor + ';';
-			}
-			style += '}';
-
-			if (this.options.onhoverColor) {
-				style += '.node-' + this.elementId + ':not(.node-disabled):hover{' +
-					'background-color:' + this.options.onhoverColor + ';' +
-				'}';
-			}
-
-			return this.css + style;
-		},
-
-		/**
-			Returns a single node object that matches the given node id.
-			@param {Number} nodeId - A node's unique identifier
-			@return {Object} node - Matching node
-		*/
-		getNode : function (nodeId) {
-			return this.nodes[nodeId];
-		},
-
-		/**
-			Returns the parent node of a given node, if valid otherwise returns undefined.
-			@param {Object|Number} identifier - A valid node or node id
-			@returns {Object} node - The parent node
-		*/
-		getParent : function (identifier) {
-			var node = this.identifyNode(identifier);
-			return this.nodes[node.parentId];
-		},
-
-		/**
-			Returns an array of sibling nodes for a given node, if valid otherwise returns undefined.
-			@param {Object|Number} identifier - A valid node or node id
-			@returns {Array} nodes - Sibling nodes
-		*/
-		getSiblings : function (identifier) {
-			var node = this.identifyNode(identifier);
-			var parent = this.getParent(node);
-			var nodes = parent ? parent.nodes : this.tree;
-			return nodes.filter(function (obj) {
-					return obj.nodeId !== node.nodeId;
-				});
-		},
-
-		/**
-			Returns an array of selected nodes.
-			@returns {Array} nodes - Selected nodes
-		*/
-		getSelected : function () {
-			return this.findNodes('true', 'g', 'state.selected');
-		},
-
-		/**
-			Returns an array of unselected nodes.
-			@returns {Array} nodes - Unselected nodes
-		*/
-		getUnselected : function () {
-			return this.findNodes('false', 'g', 'state.selected');
-		},
-
-		/**
-			Returns an array of expanded nodes.
-			@returns {Array} nodes - Expanded nodes
-		*/
-		getExpanded : function () {
-			return this.findNodes('true', 'g', 'state.expanded');
-		},
-
-		/**
-			Returns an array of collapsed nodes.
-			@returns {Array} nodes - Collapsed nodes
-		*/
-		getCollapsed : function () {
-			return this.findNodes('false', 'g', 'state.expanded');
-		},
-
-		/**
-			Returns an array of checked nodes.
-			@returns {Array} nodes - Checked nodes
-		*/
-		getChecked : function () {
-			return this.findNodes('true', 'g', 'state.checked');
-		},
-
-		/**
-			Returns an array of unchecked nodes.
-			@returns {Array} nodes - Unchecked nodes
-		*/
-		getUnchecked : function () {
-			return this.findNodes('false', 'g', 'state.checked');
-		},
-
-		/**
-			Returns an array of disabled nodes.
-			@returns {Array} nodes - Disabled nodes
-		*/
-		getDisabled : function () {
-			return this.findNodes('true', 'g', 'state.disabled');
-		},
-
-		/**
-			Returns an array of enabled nodes.
-			@returns {Array} nodes - Enabled nodes
-		*/
-		getEnabled : function () {
-			return this.findNodes('false', 'g', 'state.disabled');
-		},
-
-
-		/**
-			Set a node state to selected
-			@param {Object|Number} identifiers - A valid node, node id or array of node identifiers
-			@param {optional Object} options
-		*/
-		selectNode : function (identifiers, options) {
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.setSelectedState(node, true, options);
-			}, this));
-
-			this.render();
-		},
-
-		/**
-			Set a node state to unselected
-			@param {Object|Number} identifiers - A valid node, node id or array of node identifiers
-			@param {optional Object} options
-		*/
-		unselectNode : function (identifiers, options) {
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.setSelectedState(node, false, options);
-			}, this));
-
-			this.render();
-		},
-
-		/**
-			Toggles a node selected state; selecting if unselected, unselecting if selected.
-			@param {Object|Number} identifiers - A valid node, node id or array of node identifiers
-			@param {optional Object} options
-		*/
-		toggleNodeSelected : function (identifiers, options) {
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.toggleSelectedState(node, options);
-			}, this));
-
-			this.render();
-		},
-
-
-		/**
-			Collapse all tree nodes
-			@param {optional Object} options
-		*/
-		collapseAll : function (options) {
-			var identifiers = this.findNodes('true', 'g', 'state.expanded');
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.setExpandedState(node, false, options);
-			}, this));
-
-			this.render();
-		},
-
-		/**
-			Collapse a given tree node
-			@param {Object|Number} identifiers - A valid node, node id or array of node identifiers
-			@param {optional Object} options
-		*/
-		collapseNode : function (identifiers, options) {
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.setExpandedState(node, false, options);
-			}, this));
-
-			this.render();
-		},
-
-		/**
-			Expand all tree nodes
-			@param {optional Object} options
-		*/
-		expandAll : function (options) {
-			options = langx.extend({}, _default.options, options);
-
-			if (options && options.levels) {
-				this.expandLevels(this.tree, options.levels, options);
-			}
-			else {
-				var identifiers = this.findNodes('false', 'g', 'state.expanded');
-				this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-					this.setExpandedState(node, true, options);
-				}, this));
-			}
-
-			this.render();
-		},
-
-		/**
-			Expand a given tree node
-			@param {Object|Number} identifiers - A valid node, node id or array of node identifiers
-			@param {optional Object} options
-		*/
-		expandNode : function (identifiers, options) {
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.setExpandedState(node, true, options);
-				if (node.nodes && (options && options.levels)) {
-					this.expandLevels(node.nodes, options.levels-1, options);
-				}
-			}, this));
-
-			this.render();
-		},
-
-		expandLevels : function (nodes, level, options) {
-			options = langx.extend({}, _default.options, options);
-
-			langx.each(nodes, langx.proxy(function (index, node) {
-				this.setExpandedState(node, (level > 0) ? true : false, options);
-				if (node.nodes) {
-					this.expandLevels(node.nodes, level-1, options);
-				}
-			}, this));
-		},
-
-		/**
-			Reveals a given tree node, expanding the tree from node to root.
-			@param {Object|Number|Array} identifiers - A valid node, node id or array of node identifiers
-			@param {optional Object} options
-		*/
-		revealNode : function (identifiers, options) {
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				var parentNode = this.getParent(node);
-				while (parentNode) {
-					this.setExpandedState(parentNode, true, options);
-					parentNode = this.getParent(parentNode);
-				}
-			}, this));
-
-			this.render();
-		},
-
-		/**
-			Toggles a nodes expanded state; collapsing if expanded, expanding if collapsed.
-			@param {Object|Number} identifiers - A valid node, node id or array of node identifiers
-			@param {optional Object} options
-		*/
-		toggleNodeExpanded : function (identifiers, options) {
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.toggleExpandedState(node, options);
-			}, this));
-			
-			this.render();
-		},
-
-
-		/**
-			Check all tree nodes
-			@param {optional Object} options
-		*/
-		checkAll : function (options) {
-			var identifiers = this.findNodes('false', 'g', 'state.checked');
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.setCheckedState(node, true, options);
-			}, this));
-
-			this.render();
-		},
-
-		/**
-			Check a given tree node
-			@param {Object|Number} identifiers - A valid node, node id or array of node identifiers
-			@param {optional Object} options
-		*/
-		checkNode : function (identifiers, options) {
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.setCheckedState(node, true, options);
-			}, this));
-
-			this.render();
-		},
-
-		/**
-			Uncheck all tree nodes
-			@param {optional Object} options
-		*/
-		uncheckAll : function (options) {
-			var identifiers = this.findNodes('true', 'g', 'state.checked');
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.setCheckedState(node, false, options);
-			}, this));
-
-			this.render();
-		},
-
-		/**
-			Uncheck a given tree node
-			@param {Object|Number} identifiers - A valid node, node id or array of node identifiers
-			@param {optional Object} options
-		*/
-		uncheckNode : function (identifiers, options) {
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.setCheckedState(node, false, options);
-			}, this));
-
-			this.render();
-		},
-
-		/**
-			Toggles a nodes checked state; checking if unchecked, unchecking if checked.
-			@param {Object|Number} identifiers - A valid node, node id or array of node identifiers
-			@param {optional Object} options
-		*/
-		toggleNodeChecked : function (identifiers, options) {
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.toggleCheckedState(node, options);
-			}, this));
-
-			this.render();
-		},
-
-
-		/**
-			Disable all tree nodes
-			@param {optional Object} options
-		*/
-		disableAll : function (options) {
-			var identifiers = this.findNodes('false', 'g', 'state.disabled');
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.setDisabledState(node, true, options);
-			}, this));
-
-			this.render();
-		},
-
-		/**
-			Disable a given tree node
-			@param {Object|Number} identifiers - A valid node, node id or array of node identifiers
-			@param {optional Object} options
-		*/
-		disableNode : function (identifiers, options) {
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.setDisabledState(node, true, options);
-			}, this));
-
-			this.render();
-		},
-
-		/**
-			Enable all tree nodes
-			@param {optional Object} options
-		*/
-		enableAll : function (options) {
-			var identifiers = this.findNodes('true', 'g', 'state.disabled');
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.setDisabledState(node, false, options);
-			}, this));
-
-			this.render();
-		},
-
-		/**
-			Enable a given tree node
-			@param {Object|Number} identifiers - A valid node, node id or array of node identifiers
-			@param {optional Object} options
-		*/
-		enableNode : function (identifiers, options) {
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.setDisabledState(node, false, options);
-			}, this));
-
-			this.render();
-		},
-
-		/**
-			Toggles a nodes disabled state; disabling is enabled, enabling if disabled.
-			@param {Object|Number} identifiers - A valid node, node id or array of node identifiers
-			@param {optional Object} options
-		*/
-		toggleNodeDisabled : function (identifiers, options) {
-			this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
-				this.setDisabledState(node, !node.state.disabled, options);
-			}, this));
-
-			this.render();
-		},
-
-
-		/**
-			Common code for processing multiple identifiers
-		*/
-		forEachIdentifier : function (identifiers, options, callback) {
-
-			options = langx.extend({}, _default.options, options);
-
-			if (!(identifiers instanceof Array)) {
-				identifiers = [identifiers];
-			}
-
-			langx.each(identifiers, langx.proxy(function (index, identifier) {
-				callback(this.identifyNode(identifier), options);
-			}, this));	
-		},
-
-		/*
-			Identifies a node from either a node id or object
-		*/
-		identifyNode : function (identifier) {
-			return ((typeof identifier) === 'number') ?
-							this.nodes[identifier] :
-							identifier;
-		},
-
-		/**
-			Searches the tree for nodes (text) that match given criteria
-			@param {String} pattern - A given string to match against
-			@param {optional Object} options - Search criteria options
-			@return {Array} nodes - Matching nodes
-		*/
-		search : function (pattern, options) {
-			options = langx.extend({}, _default.searchOptions, options);
-
-			this.clearSearch({ render: false });
-
-			var results = [];
-			if (pattern && pattern.length > 0) {
-
-				if (options.exactMatch) {
-					pattern = '^' + pattern + '$';
-				}
-
-				var modifier = 'g';
-				if (options.ignoreCase) {
-					modifier += 'i';
-				}
-
-				results = this.findNodes(pattern, modifier);
-
-				// Add searchResult property to all matching nodes
-				// This will be used to apply custom styles
-				// and when identifying result to be cleared
-				langx.each(results, function (index, node) {
-					node.searchResult = true;
-				})
-			}
-
-			// If revealResults, then render is triggered from revealNode
-			// otherwise we just call render.
-			if (options.revealResults) {
-				this.revealNode(results);
-			}
-			else {
-				this.render();
-			}
-
-			this.$element.trigger('searchComplete', langx.extend(true, {}, results));
-
-			return results;
-		},
-
-		/**
-			Clears previous search results
-		*/
-		clearSearch : function (options) {
-
-			options = langx.extend({}, { render: true }, options);
-
-			var results = langx.each(this.findNodes('true', 'g', 'searchResult'), function (index, node) {
-				node.searchResult = false;
-			});
-
-			if (options.render) {
-				this.render();	
-			}
-			
-			this.$element.trigger('searchCleared', langx.extend(true, {}, results));
-		},
-
-		/**
-			Find nodes that match a given criteria
-			@param {String} pattern - A given string to match against
-			@param {optional String} modifier - Valid RegEx modifiers
-			@param {optional String} attribute - Attribute to compare pattern against
-			@return {Array} nodes - Nodes that match your criteria
-		*/
-		findNodes : function (pattern, modifier, attribute) {
-
-			modifier = modifier || 'g';
-			attribute = attribute || 'text';
-
-			var _this = this;
-			return langx.grep(this.nodes, function (node) {
-				var val = _this.getNodeValue(node, attribute);
-				if (typeof val === 'string') {
-					return val.match(new RegExp(pattern, modifier));
-				}
-			});
-		},
-
-		/**
-			Recursive find for retrieving nested attributes values
-			All values are return as strings, unless invalid
-			@param {Object} obj - Typically a node, could be any object
-			@param {String} attr - Identifies an object property using dot notation
-			@return {String} value - Matching attributes string representation
-		*/
-		getNodeValue : function (obj, attr) {
-			var index = attr.indexOf('.');
-			if (index > 0) {
-				var _obj = obj[attr.substring(0, index)];
-				var _attr = attr.substring(index + 1, attr.length);
-				return this.getNodeValue(_obj, _attr);
-			}
-			else {
-				if (obj.hasOwnProperty(attr)) {
-					return obj[attr].toString();
-				}
-				else {
-					return undefined;
-				}
-			}
-		}
-	});
-
-	var logError = function (message) {
-		if (window.console) {
-			window.console.error(message);
-		}
-	};
-
-
-    plugins.register(TreeView,"treeview",function(options,args){
-		if (typeof options === 'string') {
-			if (!(args instanceof Array)) {
-				args = [ args ];
-			}
-			return this[options].apply(this, args);
-		} else if (typeof options === 'boolean') {
-			return  this;
-		} else {
-			this.init(options);
-			return this;
-		}
-
+define('skylark-data-collection/collections',[
+	"skylark-langx/skylark"
+],function(skylark){
+	return skylark.attach("data.collections",{});
+});
+define('skylark-data-collection/Collection',[
+    "skylark-langx/Evented",
+    "./collections"
+], function(Evented, collections) {
+
+    var Collection = collections.Collection = Evented.inherit({
+
+        "klassName": "Collection",
+
+        _clear: function() {
+            throw new Error('Unimplemented API');
+        },
+
+        "clear": function() {
+            //desc: "Removes all items from the Collection",
+            //result: {
+            //    type: Collection,
+            //    desc: "this instance for chain call"
+            //},
+            //params: [],
+            this._clear();
+            this.trigger("changed:clear");
+            return this;
+        },
+
+        /*
+         *@method count
+         *@return {Number}
+         */
+        count : /*Number*/function () {
+            var c = 0,
+                it = this.iterator();
+            while(!it.hasNext()){
+                c++;
+            }
+            return c;
+        },
+
+        "forEach": function( /*Function*/ func, /*Object?*/ thisArg) {
+            //desc: "Executes a provided callback function once per collection item.",
+            //result: {
+            //    type: Number,
+            //    desc: "the number of items"
+            //},
+            //params: [{
+            //    name: "func",
+            //    type: Function,
+            //    desc: "Function to execute for each element."
+            //}, {
+            //    name: "thisArg",
+            //    type: Object,
+            //    desc: "Value to use as this when executing callback."
+            //}],
+            var it = this.iterator();
+            while(it.hasNext()){
+                var item = it.next();
+                func.call(thisArg || item,item);
+            }
+            return this;
+
+        },
+
+        "iterator" : function() {
+            throw new Error('Unimplemented API');
+        },
+
+        "toArray": function() {
+            //desc: "Returns an array containing all of the items in this collection in proper sequence (from first to last item).",
+            //result: {
+            //    type: Array,
+            //    desc: "an array containing all of the elements in this collection in proper sequence"
+            //},
+            //params: [],
+            var items = [],
+                it = this.iterator();
+            while(!it.hasNext()){
+                items.push(it.next());
+            }
+            return items;
+        }
     });
 
-	return skylark.attach("intg.bs3.TreeView",TreeView);
+    return Collection;
+});
+
+
+define('skylark-data-collection/Map',[
+    "./collections",
+    "./Collection"
+], function( collections, Collection) {
+
+    var Map = collections.Map = Collection.inherit({
+
+        "klassName": "Map",
+
+        _getInnerItems : function() {
+            return this._items;
+        },
+
+        _clear : function() {
+            this._items = [];
+        },
+
+        _findKeyByRegExp: function(regExp, callback) {
+            var items = this._getInnerItems();
+            return items.filter(function(key) {
+                if (key.match(regExp)) {
+                    if (callback) callback(key);
+                    return true;
+                } else {
+                    return false;
+                }
+            });
+        },
+
+        "get":  function(strKey, silent) {
+            //desc: "Returns the item at the specified key in the Hashtable.",
+            //result: {
+            //    type: Object,
+            //    desc: "The item at the specified key."
+            //},
+            //params: [{
+            //    name: "strKey",
+            //    type: String,
+            //    desc: "The key of the item to return."
+            //}, {
+            //    name: "silent",
+            //    type: Boolean,
+            //    desc: "the silent flag.",
+            //    optional: true
+            //}],
+            if (typeof(strKey) != "string") {
+                throw "hash key is not string!";
+            }
+            /*
+            if (!silent && !this.contains(strKey)) {
+                throw "hash key is not  existed";
+            }
+            */
+            var items = this._getInnerItems();
+            return items[strKey];
+        },
+
+        "iterator" : function() {
+            var i =0;
+            return {
+                hasNext : function() {
+                    return i < this._items.length;
+                },
+                next : function() {
+                    var key =  this._items[i++];
+                    return [this._items[key],key];
+                }
+            }
+        },
+
+        "set": function( /*String*/ strKey, /*Object*/ value) {
+            //desc: "Replaces the item at the specified key in the Hashtable with the specified item.",
+            //result: {
+            //    type: Map,
+            //    desc: "this instance for chain call."
+            //},
+            //params: [{
+            //    name: "strKey",
+            //    type: String,
+            //    desc: "key of the item to replace."
+            //}, {
+            //    name: "value",
+            //    type: Object,
+            //    desc: "item to be stored at the specified position."
+            //}],
+            if (typeof(strKey) != "string") {
+                throw "hash key is not string!";
+            }
+
+            /*
+            if (!this.contains(strKey)) {
+                throw "hash key is not existed";
+            }
+            */
+
+            var items = this._getInnerItems();
+            if (items.indexOf(strKey) == -1) {
+                items.push(strKey);
+            }
+            var oldValue = items[strKey];
+            if (oldValue !== value) {
+                items[strKey] = value;
+                var updated = {};
+                updated[strKey] = {
+                    name : strKey,
+                    value : value,
+                    oldValue : oldValue
+                };
+                this.trigger("changed" ,{ //TODO: "changed:"+ strKey
+                    data : updated
+                });
+            }
+            return this;
+        },
+
+
+        "remove": function( /*String*/ strKey) {
+            //desc: "Removes the first occurrence of a specific item from the Hashtable",
+            //result: {
+            //    type: Map,
+            //    desc: "this instance for chain call."
+            //},
+            //params: [{
+            //    name: "strKey",
+            //    type: String,
+            //    desc: "The key for The item to remove from the Hashtable."
+            //}],
+            if (typeof(strKey) != "string") {
+                throw "hash key is not string!";
+            }
+            var items = this._getInnerItems();
+            var idx = items.indexOf(strKey);
+            if (idx >= 0) {
+                delete items[strKey];
+                delete items[idx];
+            }
+        },
+
+        findByRegExp: function( /*String*/ regExp, callback) {
+            //desc: "find regExp items",
+            //result: {
+            //    type: Map,
+            //    desc: "this instance for chain call."
+            //},
+            //params: [{
+            //    name: "regExp",
+            //    type: String,
+            //    desc: "The key for The item to remove from the Hashtable."
+            //}, {
+            //    name: "callback",
+            //    type: Function,
+            //    desc: "the callback method"
+            //}],
+            var items = [],
+                self = this;
+            this._findKeyByRegExp(regExp, function(key) {
+                var item = self.get(key);
+                if (callback) callback(item);
+                items.push(item);
+            });
+            return items;
+        },
+
+        removeByRegExp: function( /*String*/ regExp) {
+            //desc: "Removes regExp items",
+            //result: {
+            //    type: Map,
+            //    desc: "this instance for chain call."
+            //},
+            //params: [{
+            //    name: "regExp",
+            //    type: String,
+            //    desc: "The key for The item to remove from the Hashtable."
+            //}],
+            var self = this;
+            this._findKeyByRegExp(regExp, function(key) {
+                self.remove(key);
+            });
+        },
+
+        "toPlain": function() {
+            //desc: "Returns a plain object containing all of the items in this Hashable.",
+            //result: {
+            //    type: Object,
+            //    desc: "a plain object containing all of the items in this Hashtable."
+            //},
+            //params: [],
+            var items = this._getInnerItems(); 
+
+            for (var i = 0; i < items.length; i++) {
+                var key = items[i];
+                plain[key] = items[key];
+            }
+            return plain;
+        },
+
+        "toString": function( /*String?*/ delim) {
+            //desc: "implementation of toString, follows [].toString().",
+            //result: {
+            //    type: String,
+            //   desc: "The string."
+            //},
+            //params: [{
+            //    name: "delim",
+            //    type: String,
+            //    desc: "The delim ",
+            //    optional: true
+            //}],
+            var items = this._getInnerItems();
+
+            return items.join((delim || ","));
+        },
+
+        "init": function( /*Object*/ data) {
+            var items = this._items = [];
+            for (var name in data) {
+                items.push(name);
+                items[name]= data[name];
+            }
+        }
+       
+    });
+    return Map;
+});
+
+
+define('skylark-data-collection/HashMap',[
+    "./collections",
+	"./Map"
+],function(collections,_Map) {
+
+	var HashMap = collections.HashMap = _Map.inherit({
+	});
+
+	return HashMap;
+});
+define('skylark-widgets-base/base',[
+	"skylark-langx/skylark"
+],function(skylark){
+	return skylark.attach("widgets.base",{});
+});
+define('skylark-widgets-base/Widget',[
+  "skylark-langx/skylark",
+  "skylark-langx/langx",
+  "skylark-domx-browser",
+  "skylark-domx-data",
+  "skylark-domx-eventer",
+  "skylark-domx-noder",
+  "skylark-domx-geom",
+  "skylark-domx-velm",
+  "skylark-domx-query",
+  "skylark-domx-plugins",
+  "skylark-data-collection/HashMap",
+  "./base"
+],function(skylark,langx,browser,datax,eventer,noder,geom,elmx,$,plugins,HashMap,base){
+
+/*---------------------------------------------------------------------------------*/
+
+	var Widget = plugins.Plugin.inherit({
+    klassName: "Widget",
+
+    _elmx : elmx,
+
+    _construct : function(elm,options) {
+        if (langx.isHtmlNode(elm)) {
+          options = this._parse(elm,options);
+        } else {
+          options = elm;
+          elm = null;
+        }
+        this.overrided(elm,options);
+
+        if (!elm) {
+          this._velm = this._create();
+          this._elm = this._velm.elm();
+        } else {
+          this._velm = elmx(this._elm);
+        }
+        
+        Object.defineProperty(this,"state",{
+          value :this.options.state || new HashMap()
+        });
+
+        //this.state = this.options.state || new Map();
+        this._init();
+
+        var addonCategoryOptions = this.options.addons;
+        if (addonCategoryOptions) {
+          var widgetCtor = this.constructor,
+              addons = widgetCtor.addons;
+          for (var categoryName in addonCategoryOptions) {
+              for (var i =0;i < addonCategoryOptions[categoryName].length; i++ ) {
+                var addonOption = addonCategoryOptions[categoryName][i];
+                if (langx.isString(addonOption)) {
+                  var addonName = addonOption,
+                      addonCtor = addons[categoryName][addonName];
+
+                  this.addon(addonCtor);
+
+                }
+
+              }
+          }
+
+
+        }
+
+
+     },
+
+    /**
+     * Parses widget options from attached element.
+     * This is a callback method called by constructor when attached element is specified.
+     * @method _parse
+     * @return {Object} options.
+     */
+    _parse : function(elm,options) {
+      var optionsAttr = datax.data(elm,"options");
+      if (optionsAttr) {
+         var options1 = JSON.parse("{" + optionsAttr + "}");
+         options = langx.mixin(options1,options); 
+      }
+      return options || {};
+    },
+
+
+    /**
+     * Create html element for this widget.
+     * This is a callback method called by constructor when attached element is not specified.
+     * @method _create
+     */
+    _create : function() {
+        var template = this.options.template;
+        if (template) {
+          return this._elmx(template);
+        } else {
+          throw new Error("The template is not existed in options!");
+        }
+    },
+
+
+    /**
+     * Init widget.
+     * This is a callback method called by constructor.
+     * @method _init
+     */
+    _init : function() {
+      var self = this;
+      if (this.widgetClass) {
+        this._velm.addClass(this.widgetClass);
+      }
+      this.state.on("changed",function(e,args) {
+        self._refresh(args.data);
+      });
+    },
+
+
+    /**
+     * Startup widget.
+     * This is a callback method called when widget element is added into dom.
+     * @method _post
+     */
+    _startup : function() {
+
+    },
+
+
+    /**
+     * Refresh widget.
+     * This is a callback method called when widget state is changed.
+     * @method _refresh
+     */
+    _refresh : function(updates) {
+      /*
+      var _ = this._,
+          model = _.model,
+          dom = _.dom,
+          props = {
+
+          };
+      updates = updates || {};
+      for (var attrName in updates){
+          var v = updates[attrName].value;
+          if (v && v.toCss) {
+              v.toCss(props);
+              updates[attrName].processed = true;
+          }
+
+      };
+
+      this.css(props);
+
+      if (updates["disabled"]) {
+          var v = updates["disabled"].value;
+          dom.aria('disabled', v);
+          self.classes.toggle('disabled', v);
+      }
+      */
+    },                
+
+    mapping : {
+      "events" : {
+  //       'mousedown .title':  'edit',
+  //       'click .button':     'save',
+  //       'click .open':       function(e) { ... }            
+      },
+
+      "attributs" : {
+
+      },
+
+      "properties" : {
+
+      },
+
+      "styles" : {
+
+      }
+    },
+
+    addon : function(ctor,setting) {
+      var categoryName = ctor.categoryName,
+          addonName = ctor.addonName;
+
+      this._addons = this.addons || {};
+      var category = this._addons[categoryName] = this._addons[categoryName] || {};
+      category[addonName] = new ctor(this,setting);
+      return this;
+    },
+
+    addons : function(categoryName,settings) {
+      this._addons = this.addons || {};
+      var category = this._addons[categoryName] = this._addons[categoryName] || {};
+
+      if (settings == undefined) {
+        return langx.clone(category || null);
+      } else {
+        langx.mixin(category,settings);
+      }
+    },
+
+
+    /**
+     * Returns a html element representing the widget.
+     *
+     * @method render
+     * @return {HtmlElement} HTML element representing the widget.
+     */
+    render: function() {
+      return this._elm;
+    },
+
+
+    /**
+     * Returns a parent widget  enclosing this widgets, or null if not exist.
+     *
+     * @method getEnclosing
+     * @return {Widget} The enclosing parent widget, or null if not exist.
+     */
+    getEnclosing : function(selector) {
+      return null;
+    },
+
+    /**
+     * Returns a widget collection with all enclosed child widgets.
+     *
+     * @method getEnclosed
+     * @return {List} Collection with all enclosed child widgets..
+     */
+    getEnclosed : function() {
+      var self = this;
+          children = new ArrayList();
+      return children;
+    },
+
+    /**
+     * Sets the visible state to true.
+     *
+     * @method show
+     * @return {Widget} Current widget instance.
+     */
+
+    show : function() {
+      this._velm.show();
+    },
+
+    /**
+     * Sets the visible state to false.
+     *
+     * @method hide
+     * @return {Widget} Current widget instance.
+     */
+    hide : function() {
+      this._velm.hide();
+    },
+
+    /**
+     * Focuses the current widget.
+     *
+     * @method focus
+     * @return {Widget} Current widget instance.
+     */
+    focus :function() {
+      try {
+        this._velm.focus();
+      } catch (ex) {
+        // Ignore IE error
+      }
+
+      return this;
+    },
+
+    /**
+     * Blurs the current widget.
+     *
+     * @method blur
+     * @return {Widget} Current widget instance.
+     */
+    blur : function() {
+      this._velm.blur();
+
+      return this;
+    },
+
+    enable: function () {
+      this.state.set('disabled',false);
+      return this;
+    },
+
+    disable: function () {
+      this.state.set('disabled',true);
+      return this;
+    },
+
+    /**
+     * Sets the specified aria property.
+     *
+     * @method aria
+     * @param {String} name Name of the aria property to set.
+     * @param {String} value Value of the aria property.
+     * @return {Widget} Current widget instance.
+     */
+    aria : function(name, value) {
+      const self = this, elm = self.getEl(self.ariaTarget);
+
+      if (typeof value === 'undefined') {
+        return self._aria[name];
+      }
+
+      self._aria[name] = value;
+
+      if (self.state.get('rendered')) {
+        elm.setAttribute(name === 'role' ? name : 'aria-' + name, value);
+      }
+
+      return self;
+    },
+
+    attr: function (name,value) {
+        var velm = this._velm,
+            ret = velm.attr(name,value);
+        return ret == velm ? this : ret;
+    },
+
+    css: function (name, value) {
+        var velm = this._velm,
+            ret = velm.css(name, value);
+        return ret == velm ? this : ret;
+    },
+
+    data: function (name, value) {
+        var velm = this._velm,
+            ret = velm.data(name,value);
+        return ret == velm ? this : ret;
+    },
+
+    prop: function (name,value) {
+        var velm = this._velm,
+            ret = velm.prop(name,value);
+        return ret == velm ? this : ret;
+    },
+
+    throb: function(params) {
+      return noder.throb(this._elm,params);
+    },
+
+
+    /**
+     *  Attach the current widget element to dom document.
+     *
+     * @method attach
+     * @return {Widget} This Widget.
+     */
+    attach : function(target,position){
+        var elm = target;
+        if (!position || position=="child") {
+            noder.append(elm,this._elm);
+        } else  if (position == "before") {
+            noder.before(elm,this._elm);
+        } else if (position == "after") {
+            noder.after(elm,this._elm);
+        }
+        this._startup();
+    },
+
+    /**
+     *  Detach the current widget element from dom document.
+     *
+     * @method html
+     * @return {HtmlElement} HTML element representing the widget.
+     */
+    detach : function() {
+      this._velm.remove();
+    }
+  });
+
+  Widget.inherit = function(meta) {
+    var ctor = plugins.Plugin.inherit.apply(this,arguments);
+
+    function addStatePropMethod(name) {
+        ctor.prototype[name] = function(value) {
+          if (value !== undefined) {
+            this.state.set(name,value);
+            return this;
+          } else {
+            return this.state.get(name);
+          }
+        };
+    }
+    if (meta.state) {
+      for (var name in meta.state) {
+          addStatePropMethod(name);
+      }
+    }
+
+    if (meta.pluginName) {
+      plugins.register(ctor,meta.pluginName);
+    }
+    return ctor;
+  };
+
+  Widget.register = function(ctor,widgetName) {
+    var meta = ctor.prototype,
+        pluginName = widgetName || meta.pluginName;
+
+    function addStatePropMethod(name) {
+        ctor.prototype[name] = function(value) {
+          if (value !== undefined) {
+            this.state.set(name,value);
+            return this;
+          } else {
+            return this.state.get(name);
+          }
+        };
+    }
+    if (meta.state) {
+      for (var name in meta.state) {
+          addStatePropMethod(name);
+      }
+    }
+
+    if (pluginName) {
+      plugins.register(ctor,pluginName);
+    }
+    return ctor;
+  };
+
+	return base.Widget = Widget;
+});
+
+define('skylark-bootstrap-treeview/TreeView',[
+  "skylark-langx/skylark",
+  "skylark-langx/langx",
+  "skylark-domx-query",
+  "skylark-utils-dom/plugins",
+  "skylark-widgets-base/Widget"  
+], function(skylark,langx,$,plugins,Widget) {
+
+  /*global jQuery, console*/
+
+  'use strict';
+
+
+  var TreeView =  Widget.inherit({
+    klassName: "TreeView",
+
+    pluginName : "treeview",
+
+    widgetClass : "treeview",
+
+    options : {
+      multiSelect: false,
+      //multiTier : false,
+      //levels: 2,
+
+      multiTier : {
+        nest   : true,
+      //  popup  : true,
+        levels : 2,
+        selectors :  {
+          children : ".list-group.children"
+        },
+        classes : {
+          expandIcon: 'glyphicon glyphicon-plus',
+          collapseIcon: 'glyphicon glyphicon-minus',
+          children : "list-group children"
+        }
+      },
+
+      selectors : {
+        item : ".list-group-item",
+        children : ".list-group"
+      },
+
+      injectStyle: true,
+
+
+      emptyIcon: 'glyphicon',
+      nodeIcon: '',
+      selectedIcon: '',
+      checkedIcon: 'glyphicon glyphicon-check',
+      uncheckedIcon: 'glyphicon glyphicon-unchecked',
+
+
+      colors : {
+        normal: undefined, // '#000000',
+        normalBack: undefined, // '#FFFFFF',
+        border: undefined, // '#dddddd',
+        onhover: '#F5F5F5',
+        selected: '#FFFFFF',
+        selectedBack: '#428bca',
+        searchResult: '#D9534F',
+        searchResultBack: undefined //'#FFFFFF',
+      },
+
+
+      enableLinks: false,
+      highlightSelected: true,
+      highlightSearchResults: true,
+      showBorder: true,
+      showIcon: true,
+      showCheckbox: false,
+      showTags: false,
+
+      search : {
+        ignoreCase: true, 
+        exactMatch: false,
+        revealResults: true    
+      },
+
+      noding : {
+        silent: false,
+        ignoreChildren: false
+      },
+
+
+      templates : {
+        list: '<ul class="list-group"></ul>',
+        item: '<li class="list-group-item"></li>',
+        indent: '<span class="indent"></span>',
+        icon: '<span class="icon"></span>',
+        link: '<a href="#" style="color:inherit;"></a>',
+        badge: '<span class="badge"></span>'
+      },
+
+
+      // Event handlers
+      onNodeChecked: undefined,
+      onNodeCollapsed: undefined,
+      onNodeDisabled: undefined,
+      onNodeEnabled: undefined,
+      onNodeExpanded: undefined,
+      onNodeSelected: undefined,
+      onNodeUnchecked: undefined,
+      onNodeUnselected: undefined,
+      onSearchComplete: undefined,
+      onSearchCleared: undefined
+
+    },   
+
+
+    css : '.Tree .list-group-item{cursor:pointer}.Tree span.indent{margin-left:10px;margin-right:10px}.Tree span.icon{width:12px;margin-right:5px}.Tree .node-disabled{color:silver;cursor:not-allowed}' ,
+
+
+    _init : function () {
+
+      var options = this.options,
+          element = this._elm;
+
+      this.$element = $(element);
+      this.elementId = element.id;
+      this.styleId = this.elementId + '-style';
+
+
+      this.tree = [];
+      this.nodes = [];
+
+      if (options.data) {
+        if (typeof options.data === 'string') {
+          options.data = JSON.parse(options.data);
+        }
+        this.tree = langx.extend(true, [], options.data);
+      }
+
+      this.destroy();
+      this.subscribeEvents();
+      this.setInitialStates({ nodes: this.tree }, 0);
+      this.render();
+    },
+
+    reset : function(options) {
+      langx.mixin(this.options,options);
+    	return this._init();
+    },
+
+    remove : function () {
+      this.destroy();
+      datax.removeData(this, this.pluginName);
+      $('#' + this.styleId).remove();
+    },
+
+    destroy : function () {
+
+      if (!this.initialized) return;
+
+      this.$wrapper.remove();
+      this.$wrapper = null;
+
+      // Switch off events
+      this.unsubscribeEvents();
+
+      // Reset this.initialized flag
+      this.initialized = false;
+    },
+
+    unsubscribeEvents : function () {
+
+      this.$element.off('click');
+      this.$element.off('nodeChecked');
+      this.$element.off('nodeCollapsed');
+      this.$element.off('nodeDisabled');
+      this.$element.off('nodeEnabled');
+      this.$element.off('nodeExpanded');
+      this.$element.off('nodeSelected');
+      this.$element.off('nodeUnchecked');
+      this.$element.off('nodeUnselected');
+      this.$element.off('searchComplete');
+      this.$element.off('searchCleared');
+    },
+
+    subscribeEvents : function () {
+
+      this.unsubscribeEvents();
+
+      this.$element.on('click', langx.proxy(this.clickHandler, this));
+
+      if (typeof (this.options.onNodeChecked) === 'function') {
+        this.$element.on('nodeChecked', this.options.onNodeChecked);
+      }
+
+      if (typeof (this.options.onNodeCollapsed) === 'function') {
+        this.$element.on('nodeCollapsed', this.options.onNodeCollapsed);
+      }
+
+      if (typeof (this.options.onNodeDisabled) === 'function') {
+        this.$element.on('nodeDisabled', this.options.onNodeDisabled);
+      }
+
+      if (typeof (this.options.onNodeEnabled) === 'function') {
+        this.$element.on('nodeEnabled', this.options.onNodeEnabled);
+      }
+
+      if (typeof (this.options.onNodeExpanded) === 'function') {
+        this.$element.on('nodeExpanded', this.options.onNodeExpanded);
+      }
+
+      if (typeof (this.options.onNodeSelected) === 'function') {
+        this.$element.on('nodeSelected', this.options.onNodeSelected);
+      }
+
+      if (typeof (this.options.onNodeUnchecked) === 'function') {
+        this.$element.on('nodeUnchecked', this.options.onNodeUnchecked);
+      }
+
+      if (typeof (this.options.onNodeUnselected) === 'function') {
+        this.$element.on('nodeUnselected', this.options.onNodeUnselected);
+      }
+
+      if (typeof (this.options.onSearchComplete) === 'function') {
+        this.$element.on('searchComplete', this.options.onSearchComplete);
+      }
+
+      if (typeof (this.options.onSearchCleared) === 'function') {
+        this.$element.on('searchCleared', this.options.onSearchCleared);
+      }
+    },
+
+    /*
+      Recurse the tree structure and ensure all nodes have
+      valid initial states.  User defined states will be preserved.
+      For performance we also take this opportunity to
+      index nodes in a flattened structure
+    */
+    setInitialStates : function (node, level) {
+
+      if (!node.nodes) return;
+      level += 1;
+
+      var parent = node;
+      var _this = this;
+      langx.each(node.nodes, function checkStates(index, node) {
+
+        // nodeId : unique, incremental identifier
+        node.nodeId = _this.nodes.length;
+
+        // parentId : transversing up the tree
+        node.parentId = parent.nodeId;
+
+        // if not provided set selectable default value
+        if (!node.hasOwnProperty('selectable')) {
+          node.selectable = true;
+        }
+
+        // where provided we should preserve states
+        node.state = node.state || {};
+
+        // set checked state; unless set always false
+        if (!node.state.hasOwnProperty('checked')) {
+          node.state.checked = false;
+        }
+
+        // set enabled state; unless set always false
+        if (!node.state.hasOwnProperty('disabled')) {
+          node.state.disabled = false;
+        }
+
+        // set expanded state; if not provided based on levels
+        if (!node.state.hasOwnProperty('expanded')) {
+          if (!node.state.disabled &&
+              (level < _this.options.multiTier.levels) &&
+              (node.nodes && node.nodes.length > 0)) {
+            node.state.expanded = true;
+          }
+          else {
+            node.state.expanded = false;
+          }
+        }
+
+        // set selected state; unless set always false
+        if (!node.state.hasOwnProperty('selected')) {
+          node.state.selected = false;
+        }
+
+        // index nodes in a flattened structure for use later
+        _this.nodes.push(node);
+
+        // recurse child nodes and transverse the tree
+        if (node.nodes) {
+          _this.setInitialStates(node, level);
+        }
+      });
+    },
+
+    clickHandler : function (event) {
+
+      if (!this.options.enableLinks) event.preventDefault();
+
+      var target = $(event.target);
+      var node = this.findNode(target);
+      if (!node || node.state.disabled) return;
+      
+      var classList = target.attr('class') ? target.attr('class').split(' ') : [];
+      if ((classList.indexOf('expand-icon') !== -1)) {
+
+        this.toggleExpandedState(node,this.options.noding);
+        this.render();
+      }
+      else if ((classList.indexOf('check-icon') !== -1)) {
+        
+        this.toggleCheckedState(node,this.options.noding);
+        this.render();
+      }
+      else {
+        
+        if (node.selectable) {
+          this.toggleSelectedState(node,this.options.noding);
+        } else {
+          this.toggleExpandedState(node,this.options.noding);
+        }
+
+        this.render();
+      }
+    },
+
+    // Looks up the DOM for the closest parent list item to retrieve the
+    // data attribute nodeid, which is used to lookup the node in the flattened structure.
+    findNode : function (target) {
+
+      //var nodeId = target.closest('li.list-group-item').attr('data-nodeid');
+      var nodeId = target.closest(this.options.selectors.item).attr('data-nodeid');
+      var node = this.nodes[nodeId];
+
+      if (!node) {
+        console.log('Error: node does not exist');
+      }
+      return node;
+    },
+
+    toggleExpandedState : function (node, options) {
+      if (!node) return;
+      this.setExpandedState(node, !node.state.expanded, options);
+    },
+
+    setExpandedState : function (node, state, options) {
+
+      if (state === node.state.expanded) return;
+
+      if (state && node.nodes) {
+
+        // Expand a node
+        node.state.expanded = true;
+        if (!options.silent) {
+          this.$element.trigger('nodeExpanded', langx.extend(true, {}, node));
+        }
+      }
+      else if (!state) {
+
+        // Collapse a node
+        node.state.expanded = false;
+        if (!options.silent) {
+          this.$element.trigger('nodeCollapsed', langx.extend(true, {}, node));
+        }
+
+        // Collapse child nodes
+        if (node.nodes && !options.ignoreChildren) {
+          langx.each(node.nodes, langx.proxy(function (index, node) {
+            this.setExpandedState(node, false, options);
+          }, this));
+        }
+      }
+    },
+
+    toggleSelectedState : function (node, options) {
+      if (!node) return;
+      this.setSelectedState(node, !node.state.selected, options);
+    },
+
+    setSelectedState : function (node, state, options) {
+
+      if (state === node.state.selected) return;
+
+      if (state) {
+
+        // If multiSelect false, unselect previously selected
+        if (!this.options.multiSelect) {
+          langx.each(this.findNodes('true', 'g', 'state.selected'), langx.proxy(function (index, node) {
+            this.setSelectedState(node, false, options);
+          }, this));
+        }
+
+        // Continue selecting node
+        node.state.selected = true;
+        if (!options.silent) {
+          this.$element.trigger('nodeSelected', langx.extend(true, {}, node));
+        }
+      }
+      else {
+
+        // Unselect node
+        node.state.selected = false;
+        if (!options.silent) {
+          this.$element.trigger('nodeUnselected', langx.extend(true, {}, node));
+        }
+      }
+    },
+
+    toggleCheckedState : function (node, options) {
+      if (!node) return;
+      this.setCheckedState(node, !node.state.checked, options);
+    },
+
+    setCheckedState : function (node, state, options) {
+
+      if (state === node.state.checked) return;
+
+      if (state) {
+
+        // Check node
+        node.state.checked = true;
+
+        if (!options.silent) {
+          this.$element.trigger('nodeChecked', langx.extend(true, {}, node));
+        }
+      }
+      else {
+
+        // Uncheck node
+        node.state.checked = false;
+        if (!options.silent) {
+          this.$element.trigger('nodeUnchecked', langx.extend(true, {}, node));
+        }
+      }
+    },
+
+    setDisabledState : function (node, state, options) {
+
+      if (state === node.state.disabled) return;
+
+      if (state) {
+
+        // Disable node
+        node.state.disabled = true;
+
+        // Disable all other states
+        this.setExpandedState(node, false, options);
+        this.setSelectedState(node, false, options);
+        this.setCheckedState(node, false, options);
+
+        if (!options.silent) {
+          this.$element.trigger('nodeDisabled', langx.extend(true, {}, node));
+        }
+      }
+      else {
+
+        // Enabled node
+        node.state.disabled = false;
+        if (!options.silent) {
+          this.$element.trigger('nodeEnabled', langx.extend(true, {}, node));
+        }
+      }
+    },
+
+    render : function () {
+
+      if (!this.initialized) {
+
+        // Setup first time only components
+        this.$element.addClass(this.widgetClass);
+        this.$wrapper = $(this.options.templates.list);
+
+        this.injectStyle();
+
+        this.initialized = true;
+      }
+
+      this.$element.empty().append(this.$wrapper.empty());
+
+      // Build tree
+      this.buildTree(this.tree, 0);
+    },
+
+    // Starting from the root node, and recursing down the
+    // structure we build the tree one node at a time
+    buildTree : function (nodes, level) {
+
+      if (!nodes) return;
+      level += 1;
+
+      var _this = this;
+      langx.each(nodes, function addNodes(id, node) {
+
+        var treeItem = $(_this.options.templates.item)
+          .addClass('node-' + _this.elementId)
+          .addClass(node.state.checked ? 'node-checked' : '')
+          .addClass(node.state.disabled ? 'node-disabled': '')
+          .addClass(node.state.selected ? 'node-selected' : '')
+          .addClass(node.searchResult ? 'search-result' : '') 
+          .attr('data-nodeid', node.nodeId)
+          .attr('style', _this.buildStyleOverride(node));
+
+        // Add indent/spacer to mimic tree structure
+        for (var i = 0; i < (level - 1); i++) {
+          treeItem.append(_this.options.templates.indent);
+        }
+
+        // Add expand, collapse or empty spacer icons
+        var classList = [];
+        if (node.nodes) {
+          classList.push('expand-icon');
+          if (node.state.expanded) {
+            classList.push(_this.options.multiTier.classes.collapseIcon);
+          }
+          else {
+            classList.push(_this.options.multiTier.classes.expandIcon);
+          }
+        }
+        else {
+          classList.push(_this.options.emptyIcon);
+        }
+
+        treeItem
+          .append($(_this.options.templates.icon)
+            .addClass(classList.join(' '))
+          );
+
+
+        // Add node icon
+        if (_this.options.showIcon) {
+          
+          var classList = ['node-icon'];
+
+          classList.push(node.icon || _this.options.nodeIcon);
+          if (node.state.selected) {
+            classList.pop();
+            classList.push(node.selectedIcon || _this.options.selectedIcon || 
+                    node.icon || _this.options.nodeIcon);
+          }
+
+          treeItem
+            .append($(_this.options.templates.icon)
+              .addClass(classList.join(' '))
+            );
+        }
+
+        // Add check / unchecked icon
+        if (_this.options.showCheckbox) {
+
+          var classList = ['check-icon'];
+          if (node.state.checked) {
+            classList.push(_this.options.checkedIcon); 
+          }
+          else {
+            classList.push(_this.options.uncheckedIcon);
+          }
+
+          treeItem
+            .append($(_this.options.templates.icon)
+              .addClass(classList.join(' '))
+            );
+        }
+
+        // Add text
+        if (_this.options.enableLinks) {
+          // Add hyperlink
+          treeItem
+            .append($(_this.options.templates.link)
+              .attr('href', node.href)
+              .append(node.text)
+            );
+        }
+        else {
+          // otherwise just text
+          treeItem
+            .append(node.text);
+        }
+
+        // Add tags as badges
+        if (_this.options.showTags && node.tags) {
+          langx.each(node.tags, function addTag(id, tag) {
+            treeItem
+              .append($(_this.options.templates.badge)
+                .append(tag)
+              );
+          });
+        }
+
+        // Add item to the tree
+        _this.$wrapper.append(treeItem);
+
+        // Recursively add child ndoes
+        if (node.nodes && node.state.expanded && !node.state.disabled) {
+          return _this.buildTree(node.nodes, level,treeItem);
+        }
+      });
+    },
+
+    // Define any node level style override for
+    // 1. selectedNode
+    // 2. node|data assigned color overrides
+    buildStyleOverride : function (node) {
+
+      if (node.state.disabled) return '';
+
+      var color = node.color;
+      var backColor = node.backColor;
+
+      if (this.options.highlightSelected && node.state.selected) {
+        if (this.options.colors.selected) {
+          color = this.options.colors.selected;
+        }
+        if (this.options.colors.selectedBack) {
+          backColor = this.options.colors.selectedBack;
+        }
+      }
+
+      if (this.options.highlightSearchResults && node.searchResult && !node.state.disabled) {
+        if (this.options.colors.searchResult) {
+          color = this.options.colors.searchResult;
+        }
+        if (this.options.colors.searchResultBack) {
+          backColor = this.options.colors.searchResultBack;
+        }
+      }
+
+      return 'color:' + color +
+        ';background-color:' + backColor + ';';
+    },
+
+    // Add inline style into head
+    injectStyle : function () {
+
+      if (this.options.injectStyle && !document.getElementById(this.styleId)) {
+        $('<style type="text/css" id="' + this.styleId + '"> ' + this.buildStyle() + ' </style>').appendTo('head');
+      }
+    },
+
+    // Construct trees style based on user options
+    buildStyle : function () {
+
+      var style = '.node-' + this.elementId + '{';
+
+      if (this.options.colors.normal) {
+        style += 'color:' + this.options.colors.normal + ';';
+      }
+
+      if (this.options.colors.normalBack) {
+        style += 'background-color:' + this.options.colors.normalBack + ';';
+      }
+
+      if (!this.options.showBorder) {
+        style += 'border:none;';
+      }
+      else if (this.options.colors.border) {
+        style += 'border:1px solid ' + this.options.colors.border + ';';
+      }
+      style += '}';
+
+      if (this.options.colors.onhover) {
+        style += '.node-' + this.elementId + ':not(.node-disabled):hover{' +
+          'background-color:' + this.options.colors.onhover + ';' +
+        '}';
+      }
+
+      return this.css + style;
+    },
+
+    /**
+      Returns a single node object that matches the given node id.
+      @param {Number} nodeId - A node's unique identifier
+      @return {Object} node - Matching node
+    */
+    getNode : function (nodeId) {
+      return this.nodes[nodeId];
+    },
+
+    /**
+      Returns the parent node of a given node, if valid otherwise returns undefined.
+      @param {Object|Number} identifier - A valid node or node id
+      @returns {Object} node - The parent node
+    */
+    getParent : function (identifier) {
+      var node = this.identifyNode(identifier);
+      return this.nodes[node.parentId];
+    },
+
+    /**
+      Returns an array of sibling nodes for a given node, if valid otherwise returns undefined.
+      @param {Object|Number} identifier - A valid node or node id
+      @returns {Array} nodes - Sibling nodes
+    */
+    getSiblings : function (identifier) {
+      var node = this.identifyNode(identifier);
+      var parent = this.getParent(node);
+      var nodes = parent ? parent.nodes : this.tree;
+      return nodes.filter(function (obj) {
+          return obj.nodeId !== node.nodeId;
+        });
+    },
+
+    /**
+      Returns an array of selected nodes.
+      @returns {Array} nodes - Selected nodes
+    */
+    getSelected : function () {
+      return this.findNodes('true', 'g', 'state.selected');
+    },
+
+    /**
+      Returns an array of unselected nodes.
+      @returns {Array} nodes - Unselected nodes
+    */
+    getUnselected : function () {
+      return this.findNodes('false', 'g', 'state.selected');
+    },
+
+    /**
+      Returns an array of expanded nodes.
+      @returns {Array} nodes - Expanded nodes
+    */
+    getExpanded : function () {
+      return this.findNodes('true', 'g', 'state.expanded');
+    },
+
+    /**
+      Returns an array of collapsed nodes.
+      @returns {Array} nodes - Collapsed nodes
+    */
+    getCollapsed : function () {
+      return this.findNodes('false', 'g', 'state.expanded');
+    },
+
+    /**
+      Returns an array of checked nodes.
+      @returns {Array} nodes - Checked nodes
+    */
+    getChecked : function () {
+      return this.findNodes('true', 'g', 'state.checked');
+    },
+
+    /**
+      Returns an array of unchecked nodes.
+      @returns {Array} nodes - Unchecked nodes
+    */
+    getUnchecked : function () {
+      return this.findNodes('false', 'g', 'state.checked');
+    },
+
+    /**
+      Returns an array of disabled nodes.
+      @returns {Array} nodes - Disabled nodes
+    */
+    getDisabled : function () {
+      return this.findNodes('true', 'g', 'state.disabled');
+    },
+
+    /**
+      Returns an array of enabled nodes.
+      @returns {Array} nodes - Enabled nodes
+    */
+    getEnabled : function () {
+      return this.findNodes('false', 'g', 'state.disabled');
+    },
+
+
+    /**
+      Set a node state to selected
+      @param {Object|Number} identifiers - A valid node, node id or array of node identifiers
+      @param {optional Object} options
+    */
+    selectNode : function (identifiers, options) {
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.setSelectedState(node, true, options);
+      }, this));
+
+      this.render();
+    },
+
+    /**
+      Set a node state to unselected
+      @param {Object|Number} identifiers - A valid node, node id or array of node identifiers
+      @param {optional Object} options
+    */
+    unselectNode : function (identifiers, options) {
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.setSelectedState(node, false, options);
+      }, this));
+
+      this.render();
+    },
+
+    /**
+      Toggles a node selected state; selecting if unselected, unselecting if selected.
+      @param {Object|Number} identifiers - A valid node, node id or array of node identifiers
+      @param {optional Object} options
+    */
+    toggleNodeSelected : function (identifiers, options) {
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.toggleSelectedState(node, options);
+      }, this));
+
+      this.render();
+    },
+
+
+    /**
+      Collapse all tree nodes
+      @param {optional Object} options
+    */
+    collapseAll : function (options) {
+      var identifiers = this.findNodes('true', 'g', 'state.expanded');
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.setExpandedState(node, false, options);
+      }, this));
+
+      this.render();
+    },
+
+    /**
+      Collapse a given tree node
+      @param {Object|Number} identifiers - A valid node, node id or array of node identifiers
+      @param {optional Object} options
+    */
+    collapseNode : function (identifiers, options) {
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.setExpandedState(node, false, options);
+      }, this));
+
+      this.render();
+    },
+
+    /**
+      Expand all tree nodes
+      @param {optional Object} options
+    */
+    expandAll : function (options) {
+      options = langx.extend({},this.options.noding, options);
+
+      if (options && options.levels) {
+        this.expandLevels(this.tree, options.levels, options);
+      }
+      else {
+        var identifiers = this.findNodes('false', 'g', 'state.expanded');
+        this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+          this.setExpandedState(node, true, options);
+        }, this));
+      }
+
+      this.render();
+    },
+
+    /**
+      Expand a given tree node
+      @param {Object|Number} identifiers - A valid node, node id or array of node identifiers
+      @param {optional Object} options
+    */
+    expandNode : function (identifiers, options) {
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.setExpandedState(node, true, options);
+        if (node.nodes && (options && options.levels)) {
+          this.expandLevels(node.nodes, options.levels-1, options);
+        }
+      }, this));
+
+      this.render();
+    },
+
+    expandLevels : function (nodes, level, options) {
+      options = langx.extend({},this.options.noding, options);
+
+      langx.each(nodes, langx.proxy(function (index, node) {
+        this.setExpandedState(node, (level > 0) ? true : false, options);
+        if (node.nodes) {
+          this.expandLevels(node.nodes, level-1, options);
+        }
+      }, this));
+    },
+
+    /**
+      Reveals a given tree node, expanding the tree from node to root.
+      @param {Object|Number|Array} identifiers - A valid node, node id or array of node identifiers
+      @param {optional Object} options
+    */
+    revealNode : function (identifiers, options) {
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        var parentNode = this.getParent(node);
+        while (parentNode) {
+          this.setExpandedState(parentNode, true, options);
+          parentNode = this.getParent(parentNode);
+        }
+      }, this));
+
+      this.render();
+    },
+
+    /**
+      Toggles a nodes expanded state; collapsing if expanded, expanding if collapsed.
+      @param {Object|Number} identifiers - A valid node, node id or array of node identifiers
+      @param {optional Object} options
+    */
+    toggleNodeExpanded : function (identifiers, options) {
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.toggleExpandedState(node, options);
+      }, this));
+      
+      this.render();
+    },
+
+
+    /**
+      Check all tree nodes
+      @param {optional Object} options
+    */
+    checkAll : function (options) {
+      var identifiers = this.findNodes('false', 'g', 'state.checked');
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.setCheckedState(node, true, options);
+      }, this));
+
+      this.render();
+    },
+
+    /**
+      Check a given tree node
+      @param {Object|Number} identifiers - A valid node, node id or array of node identifiers
+      @param {optional Object} options
+    */
+    checkNode : function (identifiers, options) {
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.setCheckedState(node, true, options);
+      }, this));
+
+      this.render();
+    },
+
+    /**
+      Uncheck all tree nodes
+      @param {optional Object} options
+    */
+    uncheckAll : function (options) {
+      var identifiers = this.findNodes('true', 'g', 'state.checked');
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.setCheckedState(node, false, options);
+      }, this));
+
+      this.render();
+    },
+
+    /**
+      Uncheck a given tree node
+      @param {Object|Number} identifiers - A valid node, node id or array of node identifiers
+      @param {optional Object} options
+    */
+    uncheckNode : function (identifiers, options) {
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.setCheckedState(node, false, options);
+      }, this));
+
+      this.render();
+    },
+
+    /**
+      Toggles a nodes checked state; checking if unchecked, unchecking if checked.
+      @param {Object|Number} identifiers - A valid node, node id or array of node identifiers
+      @param {optional Object} options
+    */
+    toggleNodeChecked : function (identifiers, options) {
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.toggleCheckedState(node, options);
+      }, this));
+
+      this.render();
+    },
+
+
+    /**
+      Disable all tree nodes
+      @param {optional Object} options
+    */
+    disableAll : function (options) {
+      var identifiers = this.findNodes('false', 'g', 'state.disabled');
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.setDisabledState(node, true, options);
+      }, this));
+
+      this.render();
+    },
+
+    /**
+      Disable a given tree node
+      @param {Object|Number} identifiers - A valid node, node id or array of node identifiers
+      @param {optional Object} options
+    */
+    disableNode : function (identifiers, options) {
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.setDisabledState(node, true, options);
+      }, this));
+
+      this.render();
+    },
+
+    /**
+      Enable all tree nodes
+      @param {optional Object} options
+    */
+    enableAll : function (options) {
+      var identifiers = this.findNodes('true', 'g', 'state.disabled');
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.setDisabledState(node, false, options);
+      }, this));
+
+      this.render();
+    },
+
+    /**
+      Enable a given tree node
+      @param {Object|Number} identifiers - A valid node, node id or array of node identifiers
+      @param {optional Object} options
+    */
+    enableNode : function (identifiers, options) {
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.setDisabledState(node, false, options);
+      }, this));
+
+      this.render();
+    },
+
+    /**
+      Toggles a nodes disabled state; disabling is enabled, enabling if disabled.
+      @param {Object|Number} identifiers - A valid node, node id or array of node identifiers
+      @param {optional Object} options
+    */
+    toggleNodeDisabled : function (identifiers, options) {
+      this.forEachIdentifier(identifiers, options, langx.proxy(function (node, options) {
+        this.setDisabledState(node, !node.state.disabled, options);
+      }, this));
+
+      this.render();
+    },
+
+
+    /**
+      Common code for processing multiple identifiers
+    */
+    forEachIdentifier : function (identifiers, options, callback) {
+
+      options = langx.extend({},this.options.noding, options);
+
+      if (!(identifiers instanceof Array)) {
+        identifiers = [identifiers];
+      }
+
+      langx.each(identifiers, langx.proxy(function (index, identifier) {
+        callback(this.identifyNode(identifier), options);
+      }, this));  
+    },
+
+    /*
+      Identifies a node from either a node id or object
+    */
+    identifyNode : function (identifier) {
+      return ((typeof identifier) === 'number') ?
+              this.nodes[identifier] :
+              identifier;
+    },
+
+    /**
+      Searches the tree for nodes (text) that match given criteria
+      @param {String} pattern - A given string to match against
+      @param {optional Object} options - Search criteria options
+      @return {Array} nodes - Matching nodes
+    */
+    search : function (pattern, options) {
+      options = langx.extend({},this.options.search, options);
+
+      this.clearSearch({ render: false });
+
+      var results = [];
+      if (pattern && pattern.length > 0) {
+
+        if (options.exactMatch) {
+          pattern = '^' + pattern + '$';
+        }
+
+        var modifier = 'g';
+        if (options.ignoreCase) {
+          modifier += 'i';
+        }
+
+        results = this.findNodes(pattern, modifier);
+
+        // Add searchResult property to all matching nodes
+        // This will be used to apply custom styles
+        // and when identifying result to be cleared
+        langx.each(results, function (index, node) {
+          node.searchResult = true;
+        })
+      }
+
+      // If revealResults, then render is triggered from revealNode
+      // otherwise we just call render.
+      if (options.revealResults) {
+        this.revealNode(results);
+      }
+      else {
+        this.render();
+      }
+
+      this.$element.trigger('searchComplete', langx.extend(true, {}, results));
+
+      return results;
+    },
+
+    /**
+      Clears previous search results
+    */
+    clearSearch : function (options) {
+
+      options = langx.extend({}, { render: true }, options);
+
+      var results = langx.each(this.findNodes('true', 'g', 'searchResult'), function (index, node) {
+        node.searchResult = false;
+      });
+
+      if (options.render) {
+        this.render();  
+      }
+      
+      this.$element.trigger('searchCleared', langx.extend(true, {}, results));
+    },
+
+    /**
+      Find nodes that match a given criteria
+      @param {String} pattern - A given string to match against
+      @param {optional String} modifier - Valid RegEx modifiers
+      @param {optional String} attribute - Attribute to compare pattern against
+      @return {Array} nodes - Nodes that match your criteria
+    */
+    findNodes : function (pattern, modifier, attribute) {
+
+      modifier = modifier || 'g';
+      attribute = attribute || 'text';
+
+      var _this = this;
+      return langx.grep(this.nodes, function (node) {
+        var val = _this.getNodeValue(node, attribute);
+        if (typeof val === 'string') {
+          return val.match(new RegExp(pattern, modifier));
+        }
+      });
+    },
+
+    /**
+      Recursive find for retrieving nested attributes values
+      All values are return as strings, unless invalid
+      @param {Object} obj - Typically a node, could be any object
+      @param {String} attr - Identifies an object property using dot notation
+      @return {String} value - Matching attributes string representation
+    */
+    getNodeValue : function (obj, attr) {
+      var index = attr.indexOf('.');
+      if (index > 0) {
+        var _obj = obj[attr.substring(0, index)];
+        var _attr = attr.substring(index + 1, attr.length);
+        return this.getNodeValue(_obj, _attr);
+      }
+      else {
+        if (obj.hasOwnProperty(attr)) {
+          return obj[attr].toString();
+        }
+        else {
+          return undefined;
+        }
+      }
+    }
+  });
+
+  plugins.register(TreeView,"treeview",function(options,args){
+	if (typeof options === 'string') {
+		if (!(args instanceof Array)) {
+			args = [ args ];
+		}
+		return this[options].apply(this, args);
+	} else if (typeof options === 'boolean') {
+		return  this;
+	} else {
+		this.reset(options);
+	}
+
+   });
+
+  return TreeView;
 });
 define('skylark-bootstrap-treeview/main',[
 	"./TreeView"

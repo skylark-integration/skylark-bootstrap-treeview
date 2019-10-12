@@ -473,7 +473,9 @@
         });
 
         $('#treeview5').treeview({
-          color: "#428bca",
+          colors : { 
+            normal: "#428bca"
+          },
           expandIcon: 'glyphicon glyphicon-chevron-right',
           collapseIcon: 'glyphicon glyphicon-chevron-down',
           nodeIcon: 'glyphicon glyphicon-bookmark',
@@ -481,7 +483,9 @@
         });
 
         $('#treeview6').treeview({
-          color: "#428bca",
+          colors : { 
+            normal: "#428bca"
+          },
           expandIcon: "glyphicon glyphicon-stop",
           collapseIcon: "glyphicon glyphicon-unchecked",
           nodeIcon: "glyphicon glyphicon-user",
@@ -490,7 +494,9 @@
         });
 
         $('#treeview7').treeview({
-          color: "#428bca",
+          colors : { 
+            normal: "#428bca"
+          },
           showBorder: false,
           data: defaultData
         });
@@ -499,15 +505,17 @@
           expandIcon: "glyphicon glyphicon-stop",
           collapseIcon: "glyphicon glyphicon-unchecked",
           nodeIcon: "glyphicon glyphicon-user",
-          color: "yellow",
-          backColor: "purple",
-          onhoverColor: "orange",
-          borderColor: "red",
+          colors : { 
+            normal: "yellow",
+            normalBack: "purple",
+            onhover: "orange",
+            border: "red",
+            selected: "yellow",
+            selectedBack: "darkorange"
+          },
           showBorder: false,
           showTags: true,
           highlightSelected: true,
-          selectedColor: "yellow",
-          selectedBackColor: "darkorange",
           data: defaultData
         });
 
@@ -515,20 +523,23 @@
           expandIcon: "glyphicon glyphicon-stop",
           collapseIcon: "glyphicon glyphicon-unchecked",
           nodeIcon: "glyphicon glyphicon-user",
-          color: "yellow",
-          backColor: "purple",
-          onhoverColor: "orange",
-          borderColor: "red",
+          colors : { 
+            normal: "yellow",
+            normalBack: "purple",
+            onhover: "orange",
+            border: "red",
+            selected: "yellow",
+            selectedBack: "darkorange"
+          },
           showBorder: false,
           showTags: true,
-          highlightSelected: true,
-          selectedColor: "yellow",
-          selectedBackColor: "darkorange",
           data: alternateData
         });
 
         $('#treeview10').treeview({
-          color: "#428bca",
+          colors : { 
+            normal: "#428bca"
+          },
           enableLinks: true,
           data: defaultData
         });
